@@ -1,0 +1,170 @@
+<!doctype html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Dragon и Killer Service</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="app.js" defer></script>
+</head>
+<body>
+<h1>Dragon и Killer Service</h1>
+
+<section>
+    <h2>Адреса сервисов</h2>
+    <p>Укажите HTTPS-адреса с окончанием <code>/api</code> (без <code>/dragons</code> и <code>/killer</code>).</p>
+    <p>При первом использовании откройте отдельно
+        <a href="https://se.ifmo.ru:31443/dragon-service/api/dragons" target="_blank" rel="noopener">Dragon API</a> и
+        <a href="https://se.ifmo.ru:32443/killer-service/api/killer/dragon/0/kill" target="_blank" rel="noopener">Killer API</a>,
+        чтобы проверить и принять самоподписанные сертификаты в браузере. Для второй ссылки ответ 405 ожидаем: операция требует POST.
+        Затем вернитесь к формам. Доступ к портам может требовать университетскую сеть.</p>
+    <form id="settings-form">
+        <label>Dragon Service <input id="dragon-url" type="url" placeholder="https://host:port/dragon-service/api" required></label>
+        <label>Killer Service <input id="killer-url" type="url" placeholder="https://host:port/killer-service/api" required></label>
+        <button type="submit">Сохранить адреса</button>
+    </form>
+    <p id="settings-message" role="status"></p>
+    <p id="dragon-status" role="status">Dragon Service: запрос ещё не выполнялся.</p>
+    <p id="killer-status" role="status">Killer Service: запрос ещё не выполнялся.</p>
+</section>
+
+<section>
+    <h2>Коллекция Dragon</h2>
+    <form id="list-form">
+        <fieldset>
+            <legend>Фильтры (пустое поле — без фильтра)</legend>
+            <div class="fields">
+                <label>ID <input name="id" inputmode="numeric"></label>
+                <label>Имя (точное совпадение) <input name="name"></label>
+                <label>Координата X <input name="coordinates.x" inputmode="numeric"></label>
+                <label>Координата Y <input name="coordinates.y" inputmode="decimal"></label>
+                <label>Дата создания (date-time) <input name="creationDate" placeholder="2026-09-25T12:00:00Z"></label>
+                <label>Возраст <input name="age" inputmode="numeric"></label>
+                <label>Размах крыльев <input name="wingspan" inputmode="numeric"></label>
+                <label>Говорящий
+                    <select name="speaking"><option value="">Любой</option><option value="true">Да</option><option value="false">Нет</option></select>
+                </label>
+                <label>Цвет
+                    <select name="color"><option value="">Любой</option><option>GREEN</option><option>BLUE</option><option>YELLOW</option><option>ORANGE</option></select>
+                </label>
+                <label>Имя убийцы (точное совпадение) <input name="killer.name"></label>
+                <label>Дата рождения убийцы (date-time) <input name="killer.birthday" placeholder="1995-04-12T10:30:00Z"></label>
+                <label>Страна убийцы
+                    <select name="killer.nationality"><option value="">Любая</option><option>FRANCE</option><option>ITALY</option><option>JAPAN</option></select>
+                </label>
+            </div>
+        </fieldset>
+        <fieldset>
+            <legend>Сортировка</legend>
+            <div id="sort-rows"></div>
+            <button type="button" id="add-sort">Добавить поле сортировки</button>
+        </fieldset>
+        <label>Страница (с нуля) <input id="page" type="number" min="0" step="1" value="0" required></label>
+        <label>Размер страницы <input id="page-size" type="number" min="1" step="1" value="10" required></label>
+        <button type="submit">Показать коллекцию</button>
+        <button type="button" id="previous-page">Назад</button>
+        <button type="button" id="next-page">Вперёд</button>
+    </form>
+    <p id="list-message" role="status"></p>
+    <div class="table-wrapper"><table id="dragon-table"><thead><tr>
+        <th>ID</th><th>Имя</th><th>X</th><th>Y</th><th>Дата создания</th><th>Возраст</th><th>Размах</th><th>Говорит</th><th>Цвет</th><th>Убийца</th><th>Дата рождения</th><th>Страна</th>
+    </tr></thead><tbody></tbody></table></div>
+</section>
+
+<section>
+    <h2>Найти Dragon по ID</h2>
+    <form id="get-form">
+        <label>ID <input name="id" inputmode="numeric" required></label>
+        <button type="submit">Найти</button>
+    </form>
+    <p id="get-message" role="status"></p>
+    <div id="get-result"></div>
+</section>
+
+<section>
+    <h2>Создать или обновить Dragon</h2>
+    <form id="dragon-form">
+        <label>ID (только для обновления) <input name="id" inputmode="numeric"></label>
+        <div class="fields">
+            <label>Имя <input name="name" required></label>
+            <label>Координата X <input name="x" inputmode="numeric" required></label>
+            <label>Координата Y <input name="y" inputmode="decimal" required></label>
+            <label>Возраст (необязательно) <input name="age" inputmode="numeric"></label>
+            <label>Размах крыльев <input name="wingspan" inputmode="numeric" required></label>
+            <label>Говорящий <select name="speaking"><option value="true">Да</option><option value="false">Нет</option></select></label>
+            <label>Цвет (необязательно) <select name="color"><option value="">Не указан</option><option>GREEN</option><option>BLUE</option><option>YELLOW</option><option>ORANGE</option></select></label>
+        </div>
+        <label><input type="checkbox" id="has-killer"> Указать убийцу</label>
+        <fieldset id="killer-fields" hidden>
+            <legend>Данные убийцы</legend>
+            <div class="fields">
+                <label>Имя убийцы <input name="killerName"></label>
+                <label>Дата рождения (необязательно) <input name="killerBirthday" placeholder="1995-04-12T10:30:00Z"></label>
+                <label>Страна (необязательно) <select name="killerNationality"><option value="">Не указана</option><option>FRANCE</option><option>ITALY</option><option>JAPAN</option></select></label>
+            </div>
+        </fieldset>
+        <button type="submit" data-method="POST">Создать (POST)</button>
+        <button type="submit" data-method="PUT">Обновить по ID (PUT)</button>
+    </form>
+    <p id="dragon-message" role="status"></p>
+    <div id="dragon-result"></div>
+</section>
+
+<section>
+    <h2>Удалить Dragon</h2>
+    <form id="delete-form">
+        <label>ID <input name="id" inputmode="numeric" required></label>
+        <button type="submit">Удалить</button>
+    </form>
+    <p id="delete-message" role="status"></p>
+</section>
+
+<section>
+    <h2>Дополнительные операции Dragon Service</h2>
+    <h3>Найти драконов по началу имени</h3>
+    <form id="prefix-form">
+        <label>Префикс имени <input name="prefix" required></label>
+        <button type="submit">Найти</button>
+    </form>
+    <p id="prefix-message" role="status"></p>
+    <div id="prefix-result" class="table-wrapper"></div>
+
+    <h3>Количество драконов, у которых имя убийцы меньше заданного</h3>
+    <form id="less-form">
+        <label>Имя убийцы <input name="killerName" required></label>
+        <button type="submit">Посчитать</button>
+    </form>
+    <p id="less-message" role="status"></p>
+    <p id="less-result"></p>
+
+    <h3>Найти драконов, у которых имя убийцы больше заданного</h3>
+    <form id="greater-form">
+        <label>Имя убийцы <input name="killerName" required></label>
+        <button type="submit">Найти</button>
+    </form>
+    <p id="greater-message" role="status"></p>
+    <div id="greater-result" class="table-wrapper"></div>
+</section>
+
+<section>
+    <h2>Killer Service</h2>
+    <h3>Убить Dragon</h3>
+    <form id="kill-form">
+        <label>ID дракона <input name="id" inputmode="numeric" required></label>
+        <button type="submit">Убить</button>
+    </form>
+    <p id="kill-message" role="status"></p>
+
+    <h3>Создать команду убийц</h3>
+    <form id="team-form">
+        <label>ID команды <input name="id" inputmode="numeric" required></label>
+        <label>Название <input name="name" required></label>
+        <label>Количество участников <input name="size" inputmode="numeric" required></label>
+        <label>ID стартовой пещеры <input name="startCaveId" inputmode="numeric" required></label>
+        <button type="submit">Создать команду</button>
+    </form>
+    <p id="team-message" role="status"></p>
+    <div id="team-result"></div>
+</section>
+</body>
+</html>

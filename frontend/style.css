@@ -1,0 +1,15 @@
+body { font-family: Arial, sans-serif; margin: 20px; line-height: 1.4; }
+section { margin: 24px 0; padding-top: 8px; border-top: 1px solid #aaa; }
+form { margin: 10px 0; }
+label { display: inline-flex; flex-direction: column; gap: 3px; margin: 5px 10px 5px 0; vertical-align: top; }
+label:has(input[type="checkbox"]) { flex-direction: row; align-items: center; }
+input, select, button { font: inherit; padding: 4px; }
+button { margin: 5px 5px 5px 0; cursor: pointer; }
+fieldset { margin: 10px 0; }
+.fields { display: flex; flex-wrap: wrap; gap: 2px 8px; }
+.table-wrapper { overflow-x: auto; }
+table { border-collapse: collapse; margin: 8px 0; }
+th, td { border: 1px solid #999; padding: 5px 8px; text-align: left; white-space: nowrap; }
+.error { color: #b00020; }
+.sort-row { margin-bottom: 4px; }
+[hidden] { display: none !important; }
