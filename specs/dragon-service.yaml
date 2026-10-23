@@ -1,0 +1,1842 @@
+openapi: 3.0.4
+info:
+  title: Dragon Collection API
+  version: 1.0.0
+  description: REST API для управления коллекцией объектов Dragon. Документация содержит XML-схемы, успешные ответы и конкретные
+    примеры ошибок валидации, обработки Java-приложением и недоступности PostgreSQL.
+tags:
+- name: Dragons
+  description: Базовые операции управления коллекцией Dragon
+- name: Dragon Operations
+  description: Дополнительные операции над коллекцией Dragon
+paths:
+  /dragons:
+    get:
+      tags:
+      - Dragons
+      summary: Получить список драконов
+      description: 'Возвращает список объектов Dragon. Поддерживает фильтрацию по любому набору полей, сортировку по одному
+        или нескольким полям и постраничный вывод результатов.
+
+        '
+      operationId: getDragons
+      parameters:
+      - name: page
+        in: query
+        required: false
+        description: Номер страницы, начиная с 0
+        schema:
+          type: integer
+          minimum: 0
+          default: 0
+      - name: pageSize
+        in: query
+        required: false
+        description: Количество объектов на одной странице
+        schema:
+          type: integer
+          minimum: 1
+          default: 10
+      - name: sort
+        in: query
+        required: false
+        description: 'Параметры сортировки. Можно указать несколько значений. Формат каждого значения: field,direction. Например:
+          sort=name,asc&sort=age,desc
+
+          '
+        style: form
+        explode: true
+        schema:
+          type: array
+          items:
+            type: string
+            pattern: ^(id|name|coordinates\.x|coordinates\.y|creationDate|age|wingspan|speaking|color|killer\.name|killer\.birthday|killer\.nationality),(asc|desc)$
+      - name: id
+        in: query
+        required: false
+        description: Фильтр по идентификатору дракона
+        schema:
+          type: integer
+          format: int64
+          minimum: 1
+      - name: name
+        in: query
+        required: false
+        description: Фильтр по имени дракона
+        schema:
+          type: string
+          minLength: 1
+      - name: coordinates.x
+        in: query
+        required: false
+        description: Фильтр по координате X
+        schema:
+          type: integer
+          format: int64
+          minimum: -842
+      - name: coordinates.y
+        in: query
+        required: false
+        description: Фильтр по координате Y
+        schema:
+          type: number
+          format: float
+      - name: creationDate
+        in: query
+        required: false
+        description: Фильтр по дате создания
+        schema:
+          type: string
+          format: date-time
+      - name: age
+        in: query
+        required: false
+        description: Фильтр по возрасту
+        schema:
+          type: integer
+          format: int32
+          minimum: 1
+      - name: wingspan
+        in: query
+        required: false
+        description: Фильтр по размаху крыльев
+        schema:
+          type: integer
+          format: int64
+          minimum: 1
+      - name: speaking
+        in: query
+        required: false
+        description: Фильтр по способности дракона говорить
+        schema:
+          type: boolean
+      - name: color
+        in: query
+        required: false
+        description: Фильтр по цвету дракона
+        schema:
+          $ref: '#/components/schemas/Color'
+      - name: killer.name
+        in: query
+        required: false
+        description: Фильтр по имени убийцы дракона
+        schema:
+          type: string
+          minLength: 1
+      - name: killer.birthday
+        in: query
+        required: false
+        description: Фильтр по дате рождения убийцы
+        schema:
+          type: string
+          format: date-time
+      - name: killer.nationality
+        in: query
+        required: false
+        description: Фильтр по национальности убийцы
+        schema:
+          $ref: '#/components/schemas/Country'
+      responses:
+        '200':
+          description: Список драконов успешно получен. Если совпадений нет, возвращается 200 с пустым массивом.
+          content:
+            application/xml:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Dragon'
+                xml:
+                  name: dragons
+                  wrapped: true
+              examples:
+                nonEmpty:
+                  summary: Непустая коллекция
+                  value:
+                  - &id001
+                    id: 1
+                    name: Smaug
+                    coordinates: &id002
+                      x: 100
+                      y: 45.5
+                    creationDate: '2026-09-25T12:00:00'
+                    age: 250
+                    wingspan: 80
+                    speaking: true
+                    color: ORANGE
+                    killer: &id003
+                      name: Bard
+                      birthday: '1995-04-12T10:30:00'
+                      nationality: FRANCE
+                  - &id004
+                    id: 2
+                    name: Alduin
+                    coordinates:
+                      x: 25
+                      y: 70.0
+                    creationDate: '2026-09-25T12:05:00'
+                    age: 500
+                    wingspan: 120
+                    speaking: true
+                    color: BLUE
+                    killer: null
+                empty:
+                  summary: Пустая коллекция — это успешный ответ 200
+                  value: []
+        '400':
+          description: Некорректный синтаксис или формат query-параметров
+          content:
+            application/problem+xml:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+              examples:
+                pageNotInteger:
+                  summary: page имеет неверный тип
+                  value:
+                    type: about:blank
+                    title: Bad Request
+                    status: 400
+                    detail: Параметр page должен быть целым числом.
+                    instance: /dragons?page=abc
+                badSort:
+                  summary: Некорректная сортировка
+                  value:
+                    type: about:blank
+                    title: Bad Request
+                    status: 400
+                    detail: Параметр sort должен иметь формат field,asc или field,desc.
+                    instance: /dragons?sort=name,up
+                badBoolean:
+                  summary: Некорректное boolean-значение
+                  value:
+                    type: about:blank
+                    title: Bad Request
+                    status: 400
+                    detail: Параметр speaking должен иметь значение true или false.
+                    instance: /dragons?speaking=yes
+                badEnum:
+                  summary: Неизвестное значение перечисления
+                  value:
+                    type: about:blank
+                    title: Bad Request
+                    status: 400
+                    detail: Параметр color должен иметь одно из значений GREEN, BLUE, YELLOW, ORANGE.
+                    instance: /dragons?color=RED
+        '404':
+          description: Запрошенный API-ресурс не найден
+          content:
+            application/problem+xml:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+              examples:
+                resourceNotFound:
+                  summary: Ресурс API отсутствует
+                  value:
+                    type: about:blank
+                    title: Not Found
+                    status: 404
+                    detail: Запрошенный API-ресурс не существует.
+                    instance: /dragons
+        '405':
+          description: Использован неподдерживаемый HTTP-метод
+          content:
+            application/problem+xml:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+              examples:
+                wrongMethod:
+                  summary: Метод не разрешён для ресурса
+                  value:
+                    type: about:blank
+                    title: Method Not Allowed
+                    status: 405
+                    detail: Для ресурса /dragons разрешены только методы GET и POST.
+                    instance: /dragons
+          headers:
+            Allow:
+              description: HTTP-методы, разрешённые для данного ресурса.
+              schema:
+                type: string
+              example: GET, POST
+        '422':
+          description: Параметры имеют корректный формат, но нарушают ограничения
+          content:
+            application/problem+xml:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+              examples:
+                pageSizeZero:
+                  summary: Недопустимый размер страницы
+                  value:
+                    type: about:blank
+                    title: Unprocessable Content
+                    status: 422
+                    detail: Параметр pageSize должен быть больше 0.
+                    instance: /dragons?pageSize=0
+                ageZero:
+                  summary: Недопустимый возраст
+                  value:
+                    type: about:blank
+                    title: Unprocessable Content
+                    status: 422
+                    detail: Параметр age должен быть больше 0.
+                    instance: /dragons?age=0
+                xBoundary:
+                  summary: Нарушено ограничение coordinates.x
+                  value:
+                    type: about:blank
+                    title: Unprocessable Content
+                    status: 422
+                    detail: Параметр coordinates.x должен быть больше -843.
+                    instance: /dragons?coordinates.x=-843
+                emptyName:
+                  summary: Пустая строка в фильтре
+                  value:
+                    type: about:blank
+                    title: Unprocessable Content
+                    status: 422
+                    detail: Параметр name не может быть пустой строкой.
+                    instance: /dragons?name=
+        '500':
+          description: Ошибка внутренней обработки данных Java-приложением
+          content:
+            application/problem+xml:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+              examples:
+                mappingFailure:
+                  summary: Ошибка преобразования данных
+                  value:
+                    type: about:blank
+                    title: Internal Server Error
+                    status: 500
+                    detail: Java-сервис получил записи Dragon, но не смог преобразовать одну из них в доменную модель из-за
+                      внутренней ошибки маппинга.
+                    instance: /dragons
+                serializationFailure:
+                  summary: Ошибка XML-сериализации
+                  value:
+                    type: about:blank
+                    title: Internal Server Error
+                    status: 500
+                    detail: Java-сервис не смог сериализовать сформированный список Dragon в XML из-за внутренней ошибки сериализации.
+                    instance: /dragons
+        '406':
+          description: Сервис не может сформировать представление в запрошенном формате
+          content:
+            application/problem+xml:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+              examples:
+                jsonNotSupported:
+                  summary: Клиент запросил неподдерживаемый формат
+                  value:
+                    type: about:blank
+                    title: Not Acceptable
+                    status: 406
+                    detail: 'Запрошен Accept: application/json, но успешный ответ этой операции предоставляется в application/xml.'
+                    instance: /dragons
+        '503':
+          description: Сервис временно не может обработать запрос
+          content:
+            application/problem+xml:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+              examples:
+                postgresDown:
+                  summary: PostgreSQL недоступен
+                  value:
+                    type: about:blank
+                    title: Service Unavailable
+                    status: 503
+                    detail: Соединение с PostgreSQL установить не удалось; сервис временно не может получить коллекцию Dragon.
+                    instance: /dragons
+                poolExhausted:
+                  summary: Исчерпан пул соединений
+                  value:
+                    type: about:blank
+                    title: Service Unavailable
+                    status: 503
+                    detail: Пул соединений Java-приложения с PostgreSQL временно исчерпан.
+                    instance: /dragons
+          headers:
+            Retry-After:
+              description: Рекомендуемое время ожидания перед повторной попыткой, в секундах.
+              schema:
+                type: integer
+                minimum: 1
+              example: 30
+    post:
+      tags:
+      - Dragons
+      summary: Добавить нового дракона
+      description: 'Создаёт новый объект Dragon. Поля id и creationDate генерируются сервером автоматически и не передаются
+        клиентом.
+
+        '
+      operationId: createDragon
+      requestBody:
+        required: true
+        description: Данные нового дракона в формате XML
+        content:
+          application/xml:
+            schema:
+              $ref: '#/components/schemas/DragonInput'
+      responses:
+        '201':
+          description: Дракон успешно создан
+          content:
+            application/xml:
+              schema:
+                $ref: '#/components/schemas/Dragon'
+              examples:
+                created:
+                  summary: Созданный Dragon
+                  value: *id001
+        '400':
+          description: Тело запроса отсутствует или содержит некорректный XML
+          content:
+            application/problem+xml:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+              examples:
+                emptyBody:
+                  summary: Пустое тело запроса
+                  value:
+                    type: about:blank
+                    title: Bad Request
+                    status: 400
+                    detail: Для создания Dragon требуется XML-тело запроса.
+                    instance: /dragons
+                malformedXml:
+                  summary: Синтаксически некорректный XML
+                  value:
+                    type: about:blank
+                    title: Bad Request
+                    status: 400
+                    detail: 'XML-документ не удалось разобрать: нарушена структура XML.'
+                    instance: /dragons
+                wrongRoot:
+                  summary: Неверный корневой элемент
+                  value:
+                    type: about:blank
+                    title: Bad Request
+                    status: 400
+                    detail: Корневым элементом XML должен быть <dragon>.
+                    instance: /dragons
+        '404':
+          description: Запрошенный API-ресурс не найден
+          content:
+            application/problem+xml:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+              examples:
+                resourceNotFound:
+                  summary: Ресурс API отсутствует
+                  value:
+                    type: about:blank
+                    title: Not Found
+                    status: 404
+                    detail: Запрошенный API-ресурс не существует.
+                    instance: /dragons
+        '405':
+          description: Использован неподдерживаемый HTTP-метод
+          content:
+            application/problem+xml:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+              examples:
+                wrongMethod:
+                  summary: Метод не разрешён для ресурса
+                  value:
+                    type: about:blank
+                    title: Method Not Allowed
+                    status: 405
+                    detail: Для ресурса /dragons разрешены только методы GET и POST.
+                    instance: /dragons
+          headers:
+            Allow:
+              description: HTTP-методы, разрешённые для данного ресурса.
+              schema:
+                type: string
+              example: GET, POST
+        '415':
+          description: Неподдерживаемый Content-Type
+          content:
+            application/problem+xml:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+              examples:
+                jsonBody:
+                  summary: Передан JSON вместо XML
+                  value:
+                    type: about:blank
+                    title: Unsupported Media Type
+                    status: 415
+                    detail: Для создания Dragon Content-Type должен быть application/xml.
+                    instance: /dragons
+                textBody:
+                  summary: Передан текстовый формат
+                  value:
+                    type: about:blank
+                    title: Unsupported Media Type
+                    status: 415
+                    detail: Content-Type text/plain не поддерживается; требуется application/xml.
+                    instance: /dragons
+        '422':
+          description: XML корректен, но поля Dragon нарушают ограничения модели
+          content:
+            application/problem+xml:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+              examples:
+                missingName:
+                  summary: Отсутствует обязательное имя
+                  value:
+                    type: about:blank
+                    title: Unprocessable Content
+                    status: 422
+                    detail: Поле name обязательно и не может быть пустым.
+                    instance: /dragons
+                wingspanZero:
+                  summary: Некорректный wingspan
+                  value:
+                    type: about:blank
+                    title: Unprocessable Content
+                    status: 422
+                    detail: Поле wingspan должно быть больше 0.
+                    instance: /dragons
+                badX:
+                  summary: Некорректная координата X
+                  value:
+                    type: about:blank
+                    title: Unprocessable Content
+                    status: 422
+                    detail: Поле coordinates.x должно быть больше -843.
+                    instance: /dragons
+                badColor:
+                  summary: Некорректный Color
+                  value:
+                    type: about:blank
+                    title: Unprocessable Content
+                    status: 422
+                    detail: Поле color должно иметь одно из значений GREEN, BLUE, YELLOW, ORANGE.
+                    instance: /dragons
+        '500':
+          description: Ошибка внутренней обработки операции создания
+          content:
+            application/problem+xml:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+              examples:
+                transactionFailure:
+                  summary: Внутренняя ошибка транзакции
+                  value:
+                    type: about:blank
+                    title: Internal Server Error
+                    status: 500
+                    detail: Java-приложение начало создание Dragon, но транзакция была откатана из-за внутренней ошибки слоя
+                      хранения.
+                    instance: /dragons
+                serializationFailure:
+                  summary: Ошибка формирования ответа
+                  value:
+                    type: about:blank
+                    title: Internal Server Error
+                    status: 500
+                    detail: Dragon был обработан приложением, но Java-сервис не смог сформировать XML-ответ из-за внутренней
+                      ошибки сериализации.
+                    instance: /dragons
+        '406':
+          description: Сервис не может сформировать представление в запрошенном формате
+          content:
+            application/problem+xml:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+              examples:
+                jsonNotSupported:
+                  summary: Неподдерживаемый Accept
+                  value:
+                    type: about:blank
+                    title: Not Acceptable
+                    status: 406
+                    detail: 'Запрошен Accept: application/json, но созданный Dragon возвращается в application/xml.'
+                    instance: /dragons
+        '413':
+          description: Размер XML-тела превышает допустимый предел
+          content:
+            application/problem+xml:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+              examples:
+                bodyTooLarge:
+                  summary: Слишком большое тело запроса
+                  value:
+                    type: about:blank
+                    title: Content Too Large
+                    status: 413
+                    detail: Размер XML-тела запроса превышает установленный сервером предел для создания Dragon.
+                    instance: /dragons
+        '503':
+          description: Хранилище временно недоступно
+          content:
+            application/problem+xml:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+              examples:
+                postgresDown:
+                  summary: PostgreSQL недоступен
+                  value:
+                    type: about:blank
+                    title: Service Unavailable
+                    status: 503
+                    detail: Java-сервис не может создать Dragon, потому что PostgreSQL временно недоступен.
+                    instance: /dragons
+                poolExhausted:
+                  summary: Нет свободного соединения с БД
+                  value:
+                    type: about:blank
+                    title: Service Unavailable
+                    status: 503
+                    detail: Пул соединений с PostgreSQL временно исчерпан; операция создания не может быть начата.
+                    instance: /dragons
+          headers:
+            Retry-After:
+              description: Рекомендуемое время ожидания перед повторной попыткой, в секундах.
+              schema:
+                type: integer
+                minimum: 1
+              example: 30
+  /dragons/{id}:
+    get:
+      tags:
+      - Dragons
+      summary: Получить дракона по ID
+      description: Возвращает объект Dragon с указанным уникальным идентификатором.
+      operationId: getDragonById
+      parameters:
+      - name: id
+        in: path
+        required: true
+        description: Уникальный идентификатор дракона
+        schema:
+          type: integer
+          format: int64
+          minimum: 1
+      responses:
+        '200':
+          description: Дракон успешно найден
+          content:
+            application/xml:
+              schema:
+                $ref: '#/components/schemas/Dragon'
+              examples:
+                found:
+                  summary: Dragon найден
+                  value: *id001
+        '400':
+          description: ID имеет неверный формат
+          content:
+            application/problem+xml:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+              examples:
+                notInteger:
+                  summary: ID не является целым числом
+                  value:
+                    type: about:blank
+                    title: Bad Request
+                    status: 400
+                    detail: Параметр id должен быть целым числом.
+                    instance: /dragons/abc
+        '404':
+          description: Запрошенный API-ресурс не найден
+          content:
+            application/problem+xml:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+              examples:
+                resourceNotFound:
+                  summary: Dragon или API-ресурс отсутствует
+                  value:
+                    type: about:blank
+                    title: Not Found
+                    status: 404
+                    detail: Запрошенный API-ресурс не существует.
+                    instance: /dragons/999
+        '405':
+          description: Использован неподдерживаемый HTTP-метод
+          content:
+            application/problem+xml:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+              examples:
+                wrongMethod:
+                  summary: Метод не разрешён
+                  value:
+                    type: about:blank
+                    title: Method Not Allowed
+                    status: 405
+                    detail: Для ресурса /dragons/{id} разрешены методы GET, PUT и DELETE.
+                    instance: /dragons/1
+          headers:
+            Allow:
+              description: HTTP-методы, разрешённые для данного ресурса.
+              schema:
+                type: string
+              example: GET, PUT, DELETE
+        '422':
+          description: ID нарушает ограничение модели
+          content:
+            application/problem+xml:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+              examples:
+                nonPositiveId:
+                  summary: ID не положительный
+                  value:
+                    type: about:blank
+                    title: Unprocessable Content
+                    status: 422
+                    detail: Параметр id должен быть больше 0.
+                    instance: /dragons/0
+        '500':
+          description: Ошибка внутренней обработки Dragon
+          content:
+            application/problem+xml:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+              examples:
+                mappingFailure:
+                  summary: Ошибка ORM/маппинга
+                  value:
+                    type: about:blank
+                    title: Internal Server Error
+                    status: 500
+                    detail: Запись Dragon была получена из хранилища, но Java-приложение не смогло преобразовать её в доменную
+                      модель.
+                    instance: /dragons/1
+                serializationFailure:
+                  summary: Ошибка XML-сериализации
+                  value:
+                    type: about:blank
+                    title: Internal Server Error
+                    status: 500
+                    detail: Java-сервис не смог сериализовать найденный объект Dragon в XML.
+                    instance: /dragons/1
+        '406':
+          description: Сервис не может вернуть Dragon в запрошенном формате
+          content:
+            application/problem+xml:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+              examples:
+                jsonNotSupported:
+                  summary: Неподдерживаемый Accept
+                  value:
+                    type: about:blank
+                    title: Not Acceptable
+                    status: 406
+                    detail: 'Запрошен Accept: application/json, но Dragon возвращается в application/xml.'
+                    instance: /dragons/1
+        '503':
+          description: Хранилище временно недоступно
+          content:
+            application/problem+xml:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+              examples:
+                postgresDown:
+                  summary: PostgreSQL недоступен
+                  value:
+                    type: about:blank
+                    title: Service Unavailable
+                    status: 503
+                    detail: Соединение с PostgreSQL установить не удалось, поэтому Dragon не может быть прочитан.
+                    instance: /dragons/1
+                poolExhausted:
+                  summary: Исчерпан пул соединений
+                  value:
+                    type: about:blank
+                    title: Service Unavailable
+                    status: 503
+                    detail: Нет свободного соединения Java-приложения с PostgreSQL.
+                    instance: /dragons/1
+          headers:
+            Retry-After:
+              description: Рекомендуемое время ожидания перед повторной попыткой, в секундах.
+              schema:
+                type: integer
+                minimum: 1
+              example: 30
+    put:
+      tags:
+      - Dragons
+      summary: Обновить дракона по ID
+      description: 'Полностью обновляет данные существующего объекта Dragon. Поля id и creationDate изменению не подлежат,
+        поскольку генерируются сервером автоматически.
+
+        '
+      operationId: updateDragon
+      parameters:
+      - name: id
+        in: path
+        required: true
+        description: Уникальный идентификатор обновляемого дракона
+        schema:
+          type: integer
+          format: int64
+          minimum: 1
+      requestBody:
+        required: true
+        description: Новые данные дракона в формате XML
+        content:
+          application/xml:
+            schema:
+              $ref: '#/components/schemas/DragonInput'
+      responses:
+        '200':
+          description: Дракон успешно обновлён
+          content:
+            application/xml:
+              schema:
+                $ref: '#/components/schemas/Dragon'
+              examples:
+                updated:
+                  summary: Обновлённый Dragon
+                  value:
+                    id: 1
+                    name: Smaug Updated
+                    coordinates: *id002
+                    creationDate: '2026-09-25T12:00:00'
+                    age: 250
+                    wingspan: 90
+                    speaking: true
+                    color: ORANGE
+                    killer: *id003
+        '400':
+          description: ID или XML имеют неверный формат
+          content:
+            application/problem+xml:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+              examples:
+                badId:
+                  summary: Некорректный ID
+                  value:
+                    type: about:blank
+                    title: Bad Request
+                    status: 400
+                    detail: Параметр id должен быть целым числом.
+                    instance: /dragons/abc
+                malformedXml:
+                  summary: Некорректный XML
+                  value:
+                    type: about:blank
+                    title: Bad Request
+                    status: 400
+                    detail: XML-документ обновления не удалось разобрать.
+                    instance: /dragons/1
+        '404':
+          description: Запрошенный API-ресурс не найден
+          content:
+            application/problem+xml:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+              examples:
+                resourceNotFound:
+                  summary: Dragon или API-ресурс отсутствует
+                  value:
+                    type: about:blank
+                    title: Not Found
+                    status: 404
+                    detail: Запрошенный API-ресурс не существует.
+                    instance: /dragons/999
+        '405':
+          description: Использован неподдерживаемый HTTP-метод
+          content:
+            application/problem+xml:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+              examples:
+                wrongMethod:
+                  summary: Метод не разрешён
+                  value:
+                    type: about:blank
+                    title: Method Not Allowed
+                    status: 405
+                    detail: Для ресурса /dragons/{id} разрешены методы GET, PUT и DELETE.
+                    instance: /dragons/1
+          headers:
+            Allow:
+              description: HTTP-методы, разрешённые для данного ресурса.
+              schema:
+                type: string
+              example: GET, PUT, DELETE
+        '415':
+          description: Неподдерживаемый Content-Type
+          content:
+            application/problem+xml:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+              examples:
+                jsonBody:
+                  summary: Передан JSON вместо XML
+                  value:
+                    type: about:blank
+                    title: Unsupported Media Type
+                    status: 415
+                    detail: Для обновления Dragon Content-Type должен быть application/xml.
+                    instance: /dragons/1
+        '422':
+          description: ID или данные Dragon нарушают ограничения модели
+          content:
+            application/problem+xml:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+              examples:
+                nonPositiveId:
+                  summary: ID не положительный
+                  value:
+                    type: about:blank
+                    title: Unprocessable Content
+                    status: 422
+                    detail: Параметр id должен быть больше 0.
+                    instance: /dragons/0
+                invalidWingspan:
+                  summary: Некорректный wingspan
+                  value:
+                    type: about:blank
+                    title: Unprocessable Content
+                    status: 422
+                    detail: Поле wingspan должно быть больше 0.
+                    instance: /dragons/1
+                invalidCoordinates:
+                  summary: Некорректная координата
+                  value:
+                    type: about:blank
+                    title: Unprocessable Content
+                    status: 422
+                    detail: Поле coordinates.x должно быть больше -843.
+                    instance: /dragons/1
+        '500':
+          description: Ошибка внутренней обработки операции обновления
+          content:
+            application/problem+xml:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+              examples:
+                transactionRollback:
+                  summary: Ошибка транзакции обновления
+                  value:
+                    type: about:blank
+                    title: Internal Server Error
+                    status: 500
+                    detail: Транзакция обновления Dragon была откатана из-за внутренней ошибки слоя хранения Java-приложения.
+                    instance: /dragons/1
+                mappingFailure:
+                  summary: Ошибка преобразования данных
+                  value:
+                    type: about:blank
+                    title: Internal Server Error
+                    status: 500
+                    detail: Java-приложение не смогло преобразовать обновлённое состояние Dragon в объект ответа.
+                    instance: /dragons/1
+        '406':
+          description: Сервис не может вернуть обновлённый Dragon в запрошенном формате
+          content:
+            application/problem+xml:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+              examples:
+                jsonNotSupported:
+                  summary: Неподдерживаемый Accept
+                  value:
+                    type: about:blank
+                    title: Not Acceptable
+                    status: 406
+                    detail: 'Запрошен Accept: application/json, но обновлённый Dragon возвращается в application/xml.'
+                    instance: /dragons/1
+        '413':
+          description: Размер XML-тела превышает допустимый предел
+          content:
+            application/problem+xml:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+              examples:
+                bodyTooLarge:
+                  summary: Слишком большое тело запроса
+                  value:
+                    type: about:blank
+                    title: Content Too Large
+                    status: 413
+                    detail: Размер XML-тела обновления Dragon превышает установленный сервером предел.
+                    instance: /dragons/1
+        '503':
+          description: Хранилище временно недоступно
+          content:
+            application/problem+xml:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+              examples:
+                postgresDown:
+                  summary: PostgreSQL недоступен
+                  value:
+                    type: about:blank
+                    title: Service Unavailable
+                    status: 503
+                    detail: Обновление Dragon невозможно, потому что PostgreSQL временно недоступен.
+                    instance: /dragons/1
+                poolExhausted:
+                  summary: Нет соединения с БД
+                  value:
+                    type: about:blank
+                    title: Service Unavailable
+                    status: 503
+                    detail: Пул соединений Java-приложения с PostgreSQL временно исчерпан.
+                    instance: /dragons/1
+          headers:
+            Retry-After:
+              description: Рекомендуемое время ожидания перед повторной попыткой, в секундах.
+              schema:
+                type: integer
+                minimum: 1
+              example: 30
+    delete:
+      tags:
+      - Dragons
+      summary: Удалить дракона по ID
+      description: Удаляет объект Dragon с указанным уникальным идентификатором.
+      operationId: deleteDragon
+      parameters:
+      - name: id
+        in: path
+        required: true
+        description: Уникальный идентификатор удаляемого дракона
+        schema:
+          type: integer
+          format: int64
+          minimum: 1
+      responses:
+        '204':
+          description: Dragon успешно удалён. Тело ответа отсутствует в соответствии с семантикой 204 No Content.
+        '400':
+          description: ID имеет неверный формат
+          content:
+            application/problem+xml:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+              examples:
+                notInteger:
+                  summary: ID не является целым числом
+                  value:
+                    type: about:blank
+                    title: Bad Request
+                    status: 400
+                    detail: Параметр id должен быть целым числом.
+                    instance: /dragons/abc
+        '404':
+          description: Запрошенный API-ресурс не найден
+          content:
+            application/problem+xml:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+              examples:
+                resourceNotFound:
+                  summary: Dragon или API-ресурс отсутствует
+                  value:
+                    type: about:blank
+                    title: Not Found
+                    status: 404
+                    detail: Запрошенный API-ресурс не существует.
+                    instance: /dragons/999
+        '405':
+          description: Использован неподдерживаемый HTTP-метод
+          content:
+            application/problem+xml:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+              examples:
+                wrongMethod:
+                  summary: Метод не разрешён
+                  value:
+                    type: about:blank
+                    title: Method Not Allowed
+                    status: 405
+                    detail: Для ресурса /dragons/{id} разрешены методы GET, PUT и DELETE.
+                    instance: /dragons/1
+          headers:
+            Allow:
+              description: HTTP-методы, разрешённые для данного ресурса.
+              schema:
+                type: string
+              example: GET, PUT, DELETE
+        '422':
+          description: ID нарушает ограничение модели
+          content:
+            application/problem+xml:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+              examples:
+                nonPositiveId:
+                  summary: ID не положительный
+                  value:
+                    type: about:blank
+                    title: Unprocessable Content
+                    status: 422
+                    detail: Параметр id должен быть больше 0.
+                    instance: /dragons/0
+        '500':
+          description: Ошибка внутренней обработки операции удаления
+          content:
+            application/problem+xml:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+              examples:
+                transactionRollback:
+                  summary: Ошибка транзакции удаления
+                  value:
+                    type: about:blank
+                    title: Internal Server Error
+                    status: 500
+                    detail: Транзакция удаления Dragon была откатана из-за внутренней ошибки слоя хранения Java-приложения.
+                    instance: /dragons/1
+                persistenceFailure:
+                  summary: Ошибка слоя persistence
+                  value:
+                    type: about:blank
+                    title: Internal Server Error
+                    status: 500
+                    detail: Java-приложение не смогло завершить удаление Dragon из-за внутренней ошибки persistence-слоя.
+                    instance: /dragons/1
+        '503':
+          description: Хранилище временно недоступно
+          content:
+            application/problem+xml:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+              examples:
+                postgresDown:
+                  summary: PostgreSQL недоступен
+                  value:
+                    type: about:blank
+                    title: Service Unavailable
+                    status: 503
+                    detail: Удаление Dragon невозможно, потому что PostgreSQL временно недоступен.
+                    instance: /dragons/1
+                poolExhausted:
+                  summary: Нет свободного соединения
+                  value:
+                    type: about:blank
+                    title: Service Unavailable
+                    status: 503
+                    detail: Пул соединений Java-приложения с PostgreSQL временно исчерпан.
+                    instance: /dragons/1
+          headers:
+            Retry-After:
+              description: Рекомендуемое время ожидания перед повторной попыткой, в секундах.
+              schema:
+                type: integer
+                minimum: 1
+              example: 30
+  /dragons/name/starts-with:
+    get:
+      tags:
+      - Dragon Operations
+      summary: Получить драконов, имя которых начинается с заданной подстроки
+      description: 'Возвращает массив объектов Dragon, значение поля name которых начинается с указанной подстроки.
+
+        '
+      operationId: getDragonsByNamePrefix
+      parameters:
+      - name: prefix
+        in: query
+        required: true
+        description: Подстрока, с которой должно начинаться имя дракона
+        schema:
+          type: string
+          minLength: 1
+      responses:
+        '200':
+          description: Поиск выполнен успешно. Если совпадений нет, возвращается 200 с пустым массивом.
+          content:
+            application/xml:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Dragon'
+                xml:
+                  name: dragons
+                  wrapped: true
+              examples:
+                matches:
+                  summary: Найдены подходящие Dragon
+                  value:
+                  - *id001
+                empty:
+                  summary: Совпадений нет — возвращается пустой массив
+                  value: []
+        '400':
+          description: Обязательный параметр prefix отсутствует или имеет неверный формат
+          content:
+            application/problem+xml:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+              examples:
+                missingParameter:
+                  summary: prefix не передан
+                  value:
+                    type: about:blank
+                    title: Bad Request
+                    status: 400
+                    detail: Обязательный query-параметр prefix не передан.
+                    instance: /dragons/name/starts-with
+        '404':
+          description: Запрошенный API-ресурс не найден
+          content:
+            application/problem+xml:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+              examples:
+                resourceNotFound:
+                  summary: Ресурс API отсутствует
+                  value:
+                    type: about:blank
+                    title: Not Found
+                    status: 404
+                    detail: Запрошенный API-ресурс не существует.
+                    instance: /dragons/name/starts-with
+        '405':
+          description: Использован неподдерживаемый HTTP-метод
+          content:
+            application/problem+xml:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+              examples:
+                wrongMethod:
+                  summary: Метод не разрешён
+                  value:
+                    type: about:blank
+                    title: Method Not Allowed
+                    status: 405
+                    detail: Для ресурса /dragons/name/starts-with разрешён только метод GET.
+                    instance: /dragons/name/starts-with
+          headers:
+            Allow:
+              description: HTTP-методы, разрешённые для данного ресурса.
+              schema:
+                type: string
+              example: GET
+        '422':
+          description: Значение prefix нарушает ограничения
+          content:
+            application/problem+xml:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+              examples:
+                emptyValue:
+                  summary: prefix пуст
+                  value:
+                    type: about:blank
+                    title: Unprocessable Content
+                    status: 422
+                    detail: Параметр prefix не может быть пустой строкой.
+                    instance: /dragons/name/starts-with?prefix=
+        '500':
+          description: Ошибка внутренней обработки операции
+          content:
+            application/problem+xml:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+              examples:
+                queryFailure:
+                  summary: Ошибка выполнения внутреннего запроса
+                  value:
+                    type: about:blank
+                    title: Internal Server Error
+                    status: 500
+                    detail: Java-сервис не смог выполнить запрос поиска Dragon по префиксу имени из-за внутренней ошибки построения
+                      запроса.
+                    instance: /dragons/name/starts-with
+                serializationFailure:
+                  summary: Ошибка XML-сериализации
+                  value:
+                    type: about:blank
+                    title: Internal Server Error
+                    status: 500
+                    detail: Java-сервис получил результат операции, но не смог сериализовать его в XML.
+                    instance: /dragons/name/starts-with
+        '406':
+          description: Сервис не может сформировать ответ в запрошенном формате
+          content:
+            application/problem+xml:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+              examples:
+                jsonNotSupported:
+                  summary: Неподдерживаемый Accept
+                  value:
+                    type: about:blank
+                    title: Not Acceptable
+                    status: 406
+                    detail: 'Запрошен Accept: application/json, но успешный ответ этой операции предоставляется в application/xml.'
+                    instance: /dragons/name/starts-with
+        '503':
+          description: PostgreSQL или пул соединений временно недоступны
+          content:
+            application/problem+xml:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+              examples:
+                postgresDown:
+                  summary: PostgreSQL недоступен
+                  value:
+                    type: about:blank
+                    title: Service Unavailable
+                    status: 503
+                    detail: Java-сервис не может выполнить операцию, потому что PostgreSQL временно недоступен.
+                    instance: /dragons/name/starts-with
+                poolExhausted:
+                  summary: Исчерпан пул соединений
+                  value:
+                    type: about:blank
+                    title: Service Unavailable
+                    status: 503
+                    detail: Пул соединений Java-приложения с PostgreSQL временно исчерпан.
+                    instance: /dragons/name/starts-with
+          headers:
+            Retry-After:
+              description: Рекомендуемое время ожидания перед повторной попыткой, в секундах.
+              schema:
+                type: integer
+                minimum: 1
+              example: 30
+  /dragons/killer/less-than/count:
+    get:
+      tags:
+      - Dragon Operations
+      summary: Получить количество драконов с killer меньше заданного
+      description: 'Возвращает количество объектов Dragon, у которых killer не равен null, а значение killer.name лексикографически
+        меньше заданного имени. Сравнение выполняется по полю name объекта Person, поскольку name является обязательным полем
+        класса Person.
+
+        '
+      operationId: countDragonsByKillerLessThan
+      parameters:
+      - name: killerName
+        in: query
+        required: true
+        description: 'Имя Person, используемое для сравнения с killer.name.
+
+          '
+        schema:
+          type: string
+          minLength: 1
+      responses:
+        '200':
+          description: Количество объектов успешно вычислено
+          content:
+            application/xml:
+              schema:
+                type: integer
+                format: int64
+                minimum: 0
+              examples:
+                positiveCount:
+                  summary: Найдены подходящие объекты
+                  value: 3
+                zeroCount:
+                  summary: Подходящих объектов нет
+                  value: 0
+        '400':
+          description: Обязательный параметр killerName отсутствует или имеет неверный формат
+          content:
+            application/problem+xml:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+              examples:
+                missingParameter:
+                  summary: killerName не передан
+                  value:
+                    type: about:blank
+                    title: Bad Request
+                    status: 400
+                    detail: Обязательный query-параметр killerName не передан.
+                    instance: /dragons/killer/less-than/count
+        '404':
+          description: Запрошенный API-ресурс не найден
+          content:
+            application/problem+xml:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+              examples:
+                resourceNotFound:
+                  summary: Ресурс API отсутствует
+                  value:
+                    type: about:blank
+                    title: Not Found
+                    status: 404
+                    detail: Запрошенный API-ресурс не существует.
+                    instance: /dragons/killer/less-than/count
+        '405':
+          description: Использован неподдерживаемый HTTP-метод
+          content:
+            application/problem+xml:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+              examples:
+                wrongMethod:
+                  summary: Метод не разрешён
+                  value:
+                    type: about:blank
+                    title: Method Not Allowed
+                    status: 405
+                    detail: Для ресурса /dragons/killer/less-than/count разрешён только метод GET.
+                    instance: /dragons/killer/less-than/count
+          headers:
+            Allow:
+              description: HTTP-методы, разрешённые для данного ресурса.
+              schema:
+                type: string
+              example: GET
+        '422':
+          description: Значение killerName нарушает ограничения
+          content:
+            application/problem+xml:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+              examples:
+                emptyValue:
+                  summary: killerName пуст
+                  value:
+                    type: about:blank
+                    title: Unprocessable Content
+                    status: 422
+                    detail: Параметр killerName не может быть пустой строкой.
+                    instance: /dragons/killer/less-than/count?killerName=
+        '500':
+          description: Ошибка внутренней обработки операции
+          content:
+            application/problem+xml:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+              examples:
+                queryFailure:
+                  summary: Ошибка выполнения внутреннего запроса
+                  value:
+                    type: about:blank
+                    title: Internal Server Error
+                    status: 500
+                    detail: Java-сервис не смог выполнить агрегирующий запрос подсчёта Dragon по killer.name из-за внутренней
+                      ошибки построения запроса.
+                    instance: /dragons/killer/less-than/count
+                serializationFailure:
+                  summary: Ошибка XML-сериализации
+                  value:
+                    type: about:blank
+                    title: Internal Server Error
+                    status: 500
+                    detail: Java-сервис получил результат операции, но не смог сериализовать его в XML.
+                    instance: /dragons/killer/less-than/count
+        '406':
+          description: Сервис не может сформировать ответ в запрошенном формате
+          content:
+            application/problem+xml:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+              examples:
+                jsonNotSupported:
+                  summary: Неподдерживаемый Accept
+                  value:
+                    type: about:blank
+                    title: Not Acceptable
+                    status: 406
+                    detail: 'Запрошен Accept: application/json, но успешный ответ этой операции предоставляется в application/xml.'
+                    instance: /dragons/killer/less-than/count
+        '503':
+          description: PostgreSQL или пул соединений временно недоступны
+          content:
+            application/problem+xml:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+              examples:
+                postgresDown:
+                  summary: PostgreSQL недоступен
+                  value:
+                    type: about:blank
+                    title: Service Unavailable
+                    status: 503
+                    detail: Java-сервис не может выполнить операцию, потому что PostgreSQL временно недоступен.
+                    instance: /dragons/killer/less-than/count
+                poolExhausted:
+                  summary: Исчерпан пул соединений
+                  value:
+                    type: about:blank
+                    title: Service Unavailable
+                    status: 503
+                    detail: Пул соединений Java-приложения с PostgreSQL временно исчерпан.
+                    instance: /dragons/killer/less-than/count
+          headers:
+            Retry-After:
+              description: Рекомендуемое время ожидания перед повторной попыткой, в секундах.
+              schema:
+                type: integer
+                minimum: 1
+              example: 30
+  /dragons/killer/greater-than:
+    get:
+      tags:
+      - Dragon Operations
+      summary: Получить драконов с killer больше заданного
+      description: 'Возвращает массив объектов Dragon, у которых killer не равен null, а значение killer.name лексикографически
+        больше заданного имени. Сравнение выполняется по полю name объекта Person, поскольку name является обязательным полем
+        класса Person.
+
+        '
+      operationId: getDragonsByKillerGreaterThan
+      parameters:
+      - name: killerName
+        in: query
+        required: true
+        description: 'Имя Person, используемое для сравнения с killer.name.
+
+          '
+        schema:
+          type: string
+          minLength: 1
+      responses:
+        '200':
+          description: Поиск выполнен успешно. Если совпадений нет, возвращается 200 с пустым массивом.
+          content:
+            application/xml:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Dragon'
+                xml:
+                  name: dragons
+                  wrapped: true
+              examples:
+                matches:
+                  summary: Найдены подходящие Dragon
+                  value:
+                  - *id004
+                empty:
+                  summary: Совпадений нет — возвращается пустой массив
+                  value: []
+        '400':
+          description: Обязательный параметр killerName отсутствует или имеет неверный формат
+          content:
+            application/problem+xml:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+              examples:
+                missingParameter:
+                  summary: killerName не передан
+                  value:
+                    type: about:blank
+                    title: Bad Request
+                    status: 400
+                    detail: Обязательный query-параметр killerName не передан.
+                    instance: /dragons/killer/greater-than
+        '404':
+          description: Запрошенный API-ресурс не найден
+          content:
+            application/problem+xml:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+              examples:
+                resourceNotFound:
+                  summary: Ресурс API отсутствует
+                  value:
+                    type: about:blank
+                    title: Not Found
+                    status: 404
+                    detail: Запрошенный API-ресурс не существует.
+                    instance: /dragons/killer/greater-than
+        '405':
+          description: Использован неподдерживаемый HTTP-метод
+          content:
+            application/problem+xml:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+              examples:
+                wrongMethod:
+                  summary: Метод не разрешён
+                  value:
+                    type: about:blank
+                    title: Method Not Allowed
+                    status: 405
+                    detail: Для ресурса /dragons/killer/greater-than разрешён только метод GET.
+                    instance: /dragons/killer/greater-than
+          headers:
+            Allow:
+              description: HTTP-методы, разрешённые для данного ресурса.
+              schema:
+                type: string
+              example: GET
+        '422':
+          description: Значение killerName нарушает ограничения
+          content:
+            application/problem+xml:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+              examples:
+                emptyValue:
+                  summary: killerName пуст
+                  value:
+                    type: about:blank
+                    title: Unprocessable Content
+                    status: 422
+                    detail: Параметр killerName не может быть пустой строкой.
+                    instance: /dragons/killer/greater-than?killerName=
+        '500':
+          description: Ошибка внутренней обработки операции
+          content:
+            application/problem+xml:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+              examples:
+                queryFailure:
+                  summary: Ошибка выполнения внутреннего запроса
+                  value:
+                    type: about:blank
+                    title: Internal Server Error
+                    status: 500
+                    detail: Java-сервис не смог выполнить запрос сравнения killer.name из-за внутренней ошибки построения
+                      запроса.
+                    instance: /dragons/killer/greater-than
+                serializationFailure:
+                  summary: Ошибка XML-сериализации
+                  value:
+                    type: about:blank
+                    title: Internal Server Error
+                    status: 500
+                    detail: Java-сервис получил результат операции, но не смог сериализовать его в XML.
+                    instance: /dragons/killer/greater-than
+        '406':
+          description: Сервис не может сформировать ответ в запрошенном формате
+          content:
+            application/problem+xml:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+              examples:
+                jsonNotSupported:
+                  summary: Неподдерживаемый Accept
+                  value:
+                    type: about:blank
+                    title: Not Acceptable
+                    status: 406
+                    detail: 'Запрошен Accept: application/json, но успешный ответ этой операции предоставляется в application/xml.'
+                    instance: /dragons/killer/greater-than
+        '503':
+          description: PostgreSQL или пул соединений временно недоступны
+          content:
+            application/problem+xml:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+              examples:
+                postgresDown:
+                  summary: PostgreSQL недоступен
+                  value:
+                    type: about:blank
+                    title: Service Unavailable
+                    status: 503
+                    detail: Java-сервис не может выполнить операцию, потому что PostgreSQL временно недоступен.
+                    instance: /dragons/killer/greater-than
+                poolExhausted:
+                  summary: Исчерпан пул соединений
+                  value:
+                    type: about:blank
+                    title: Service Unavailable
+                    status: 503
+                    detail: Пул соединений Java-приложения с PostgreSQL временно исчерпан.
+                    instance: /dragons/killer/greater-than
+          headers:
+            Retry-After:
+              description: Рекомендуемое время ожидания перед повторной попыткой, в секундах.
+              schema:
+                type: integer
+                minimum: 1
+              example: 30
+components:
+  schemas:
+    Dragon:
+      type: object
+      required:
+      - id
+      - name
+      - coordinates
+      - creationDate
+      - wingspan
+      - speaking
+      properties:
+        id:
+          type: integer
+          format: int64
+          minimum: 1
+          readOnly: true
+          description: Уникальный идентификатор дракона, генерируется автоматически
+        name:
+          type: string
+          minLength: 1
+          description: Имя дракона. Не может быть пустым
+        coordinates:
+          $ref: '#/components/schemas/Coordinates'
+        creationDate:
+          type: string
+          format: date-time
+          readOnly: true
+          description: Дата создания объекта, генерируется автоматически
+        age:
+          type: integer
+          format: int32
+          minimum: 1
+          nullable: true
+          description: Возраст дракона. Если указан, должен быть больше 0
+        wingspan:
+          type: integer
+          format: int64
+          minimum: 1
+          description: Размах крыльев. Должен быть больше 0
+        speaking:
+          type: boolean
+          description: Умеет ли дракон говорить
+        color:
+          allOf:
+          - $ref: '#/components/schemas/Color'
+          nullable: true
+          description: Цвет дракона
+        killer:
+          allOf:
+          - $ref: '#/components/schemas/Person'
+          nullable: true
+          description: Человек, убивший дракона
+      xml:
+        name: dragon
+    DragonInput:
+      type: object
+      required:
+      - name
+      - coordinates
+      - wingspan
+      - speaking
+      properties:
+        name:
+          type: string
+          minLength: 1
+          description: Имя дракона. Не может быть пустым
+        coordinates:
+          $ref: '#/components/schemas/Coordinates'
+        age:
+          type: integer
+          format: int32
+          minimum: 1
+          nullable: true
+          description: Возраст дракона. Если указан, должен быть больше 0
+        wingspan:
+          type: integer
+          format: int64
+          minimum: 1
+          description: Размах крыльев. Должен быть больше 0
+        speaking:
+          type: boolean
+          description: Умеет ли дракон говорить
+        color:
+          allOf:
+          - $ref: '#/components/schemas/Color'
+          nullable: true
+        killer:
+          allOf:
+          - $ref: '#/components/schemas/Person'
+          nullable: true
+      xml:
+        name: dragon
+    Coordinates:
+      type: object
+      required:
+      - x
+      - y
+      properties:
+        x:
+          type: integer
+          format: int64
+          minimum: -842
+          description: Координата X. Значение должно быть больше -843
+        y:
+          type: number
+          format: float
+          description: Координата Y
+      xml:
+        name: coordinates
+    Person:
+      type: object
+      required:
+      - name
+      properties:
+        name:
+          type: string
+          minLength: 1
+          description: Имя человека. Не может быть пустым
+        birthday:
+          type: string
+          format: date-time
+          nullable: true
+          description: Дата рождения
+        nationality:
+          allOf:
+          - $ref: '#/components/schemas/Country'
+          nullable: true
+          description: Национальность
+      xml:
+        name: person
+    Color:
+      type: string
+      enum:
+      - GREEN
+      - BLUE
+      - YELLOW
+      - ORANGE
+      description: Цвет дракона
+    Country:
+      type: string
+      enum:
+      - FRANCE
+      - ITALY
+      - JAPAN
+      description: Страна
+    ProblemDetails:
+      type: object
+      description: Стандартное XML-представление ошибки HTTP API (Problem Details).
+      required:
+      - type
+      - title
+      - status
+      - detail
+      - instance
+      properties:
+        type:
+          type: string
+          format: uri-reference
+          description: URI типа проблемы; about:blank используется для стандартной HTTP-ошибки.
+        title:
+          type: string
+          description: Краткое название класса HTTP-ошибки.
+        status:
+          type: integer
+          format: int32
+          minimum: 100
+          maximum: 599
+          description: HTTP-код ответа.
+        detail:
+          type: string
+          description: Конкретная причина ошибки без stack trace и внутренних секретов.
+        instance:
+          type: string
+          format: uri-reference
+          description: URI запроса, для которого приведён пример ошибки.
+      xml:
+        name: problem
+        namespace: urn:ietf:rfc:7807
+servers:
+- url: https://se.ifmo.ru/~s412958/soa-lab1
+  description: Демонстрационный адрес Swagger UI. Реальный backend в рамках данной спецификации не развёрнут.
