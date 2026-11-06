@@ -1,21 +1,19 @@
 const $ = id => document.getElementById(id);
 const fields = ["id", "name", "coordinates.x", "coordinates.y", "creationDate", "age", "wingspan", "speaking", "color", "killer.name", "killer.birthday", "killer.nationality"];
 const labels = ["ID", "Имя", "X", "Y", "Дата создания", "Возраст", "Размах", "Говорит", "Цвет", "Убийца", "Дата рождения", "Страна"];
-
-$("dragon-url").value = localStorage.getItem("dragonApiUrl") || "https://se.ifmo.ru:31443/dragon-service/api";
-$("killer-url").value = localStorage.getItem("killerApiUrl") || "https://se.ifmo.ru:32443/killer-service/api";
+const tunnelMode = new URLSearchParams(window.location.search).get("connection") === "tunnel";
+const apiHost = tunnelMode ? "127.0.0.1" : "helios.cs.ifmo.ru";
+const apiUrls = {
+    dragon: "https://" + apiHost + ":31443/dragon-service/api",
+    killer: "https://" + apiHost + ":32443/killer-service/api"
+};
+$("dragon-certificate").href = apiUrls.dragon + "/dragons";
+$("killer-certificate").href = apiUrls.killer + "/killer/dragon/0/kill";
 
 function message(id, text, error = false) {
     const target = $(id);
     target.textContent = text;
     target.classList.toggle("error", error);
-}
-
-function baseUrl(service) {
-    let url = $(service === "dragon" ? "dragon-url" : "killer-url").value.trim();
-    if (!url.startsWith("https://")) throw new Error("Укажите HTTPS-адрес " + service + " API в разделе «Адреса сервисов».");
-    while (url.endsWith("/")) url = url.slice(0, -1);
-    return url;
 }
 
 function xmlDocument(xml) {
@@ -111,18 +109,22 @@ function showObject(containerId, object) {
 }
 
 async function api(service, path, method = "GET", body = null) {
-    const url = baseUrl(service) + path;
+    const url = apiUrls[service] + path;
     let response;
     try {
         response = await fetch(url, {
             method,
             signal: AbortSignal.timeout(20000),
-            headers: body === null ? {Accept: "application/xml"} : {Accept: "application/xml", "Content-Type": "application/xml"},
+            headers: {Accept: "application/xml", ...(body === null ? {} : {"Content-Type": "application/xml"})},
             body
         });
     } catch (error) {
         message(service + "-status", "Сервис недоступен: запрос не завершён. Проверьте сеть и сертификат.", true);
-        throw new Error("Не удалось подключиться к сервису. Проверьте HTTPS-адрес, сертификат и разрешение CORS.");
+        throw new Error("Не удалось связаться с " + (service === "dragon" ? "Dragon" : "Killer")
+            + " Service (" + apiHost + "). Откройте ссылку его сертификата вверху страницы и подтвердите доверие. "
+            + (tunnelMode ? "Проверьте, что SSH-туннели открыты на этом компьютере, и разрешите браузеру доступ к локальной сети, если он запросит."
+                : "Проверьте университетскую сеть и доступность портов. Для SSH-туннелей откройте сайт с ?connection=tunnel.")
+            + " Сервис на Helios также должен быть запущен.");
     }
 
     message(service + "-status", "Сервис отвечает: HTTP " + response.status, response.status >= 500);
@@ -227,23 +229,14 @@ function dragonXml(form) {
     if ($("has-killer").checked) {
         const killer = xmlDoc.createElement("killer");
         appendXml(xmlDoc, killer, "name", String(data.get("killerName") || ""));
-        appendXml(xmlDoc, killer, "birthday", String(data.get("killerBirthday") || ""));
+        let birthday = String(data.get("killerBirthday") || "").trim();
+        if (birthday.length === 10 && birthday[4] === "-" && birthday[7] === "-") birthday += "T00:00:00Z";
+        appendXml(xmlDoc, killer, "birthday", birthday);
         appendXml(xmlDoc, killer, "nationality", String(data.get("killerNationality") || ""));
         root.appendChild(killer);
     }
     return new XMLSerializer().serializeToString(xmlDoc);
 }
-
-$("settings-form").addEventListener("submit", event => {
-    event.preventDefault();
-    action("settings-message", async () => {
-        const dragon = baseUrl("dragon");
-        const killer = baseUrl("killer");
-        localStorage.setItem("dragonApiUrl", dragon);
-        localStorage.setItem("killerApiUrl", killer);
-        message("settings-message", "Адреса сохранены.");
-    });
-});
 
 $("add-sort").addEventListener("click", addSort);
 $("list-form").addEventListener("submit", event => {
@@ -362,3 +355,4 @@ $("team-form").addEventListener("submit", event => {
         message("team-message", "Команда создана (201).");
     });
 });
+

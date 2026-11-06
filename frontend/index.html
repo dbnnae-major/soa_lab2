@@ -5,25 +5,15 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Dragon и Killer Service</title>
     <link rel="stylesheet" href="style.css">
-    <script src="app.js" defer></script>
+    <script src="app.js?v=20261106-tunnel" defer></script>
 </head>
 <body>
 <h1>Dragon и Killer Service</h1>
 
 <section>
-    <h2>Адреса сервисов</h2>
-    <p>Укажите HTTPS-адреса с окончанием <code>/api</code> (без <code>/dragons</code> и <code>/killer</code>).</p>
-    <p>При первом использовании откройте отдельно
-        <a href="https://se.ifmo.ru:31443/dragon-service/api/dragons" target="_blank" rel="noopener">Dragon API</a> и
-        <a href="https://se.ifmo.ru:32443/killer-service/api/killer/dragon/0/kill" target="_blank" rel="noopener">Killer API</a>,
-        чтобы проверить и принять самоподписанные сертификаты в браузере. Для второй ссылки ответ 405 ожидаем: операция требует POST.
-        Затем вернитесь к формам. Доступ к портам может требовать университетскую сеть.</p>
-    <form id="settings-form">
-        <label>Dragon Service <input id="dragon-url" type="url" placeholder="https://host:port/dragon-service/api" required></label>
-        <label>Killer Service <input id="killer-url" type="url" placeholder="https://host:port/killer-service/api" required></label>
-        <button type="submit">Сохранить адреса</button>
-    </form>
-    <p id="settings-message" role="status"></p>
+    <h2>Состояние сервисов</h2>
+    <p><a id="dragon-certificate" href="https://helios.cs.ifmo.ru:31443/dragon-service/api/dragons" target="_blank" rel="noopener noreferrer">Проверить сертификат Dragon Service</a></p>
+    <p><a id="killer-certificate" href="https://helios.cs.ifmo.ru:32443/killer-service/api/killer/dragon/0/kill" target="_blank" rel="noopener noreferrer">Проверить сертификат Killer Service</a></p>
     <p id="dragon-status" role="status">Dragon Service: запрос ещё не выполнялся.</p>
     <p id="killer-status" role="status">Killer Service: запрос ещё не выполнялся.</p>
 </section>
@@ -99,7 +89,7 @@
             <legend>Данные убийцы</legend>
             <div class="fields">
                 <label>Имя убийцы <input name="killerName"></label>
-                <label>Дата рождения (необязательно) <input name="killerBirthday" placeholder="1995-04-12T10:30:00Z"></label>
+                <label>Дата рождения (дата или date-time, необязательно) <input name="killerBirthday" placeholder="1995-04-12T10:30:00Z"></label>
                 <label>Страна (необязательно) <select name="killerNationality"><option value="">Не указана</option><option>FRANCE</option><option>ITALY</option><option>JAPAN</option></select></label>
             </div>
         </fieldset>
@@ -168,3 +158,5 @@
 </section>
 </body>
 </html>
+
+
